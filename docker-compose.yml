@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # ScyllaDB - Single node for development
   scylla:
-    image: scylladb/scylla:5.4
+    image: scylladb/scylla:2025.3
     container_name: aigc-scylla
     command: --smp 1 --memory 2G --overprovisioned 1 --api-address 0.0.0.0
     ports:
