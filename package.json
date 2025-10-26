@@ -1,0 +1,15 @@
+{
+  "name": "aigc-history-integration-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:integration": "vitest run --config tests/integration/vitest.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "axios": "^1.12.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.3"
+  }
+}

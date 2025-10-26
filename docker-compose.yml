@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # ScyllaDB - Single node for development
+  scylla:
+    image: scylladb/scylla:5.4
+    container_name: aigc-scylla
+    command: --smp 1 --memory 2G --overprovisioned 1 --api-address 0.0.0.0
+    ports:
+      - "9042:9042"  # CQL native transport
+      - "9142:9142"  # Alternator (DynamoDB API)
+      - "10000:10000" # REST API
+    volumes:
+      - scylla-data:/var/lib/scylla
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - aigc-network
+
+  # MinIO - S3-compatible object storage
+  minio:
+    image: minio/minio:latest
+    container_name: aigc-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - aigc-network
+
+  # Create MinIO bucket on startup
+  minio-init:
+    image: minio/mc:latest
+    container_name: aigc-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb myminio/aigc-images --ignore-existing;
+      mc anonymous set download myminio/aigc-images;
+      exit 0;
+      "
+    networks:
+      - aigc-network
+
+  # API Server (uncomment after building)
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: aigc-api
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     SCYLLA_NODES: scylla:9042
+  #     SCYLLA_KEYSPACE: aigc_history
+  #     S3_ENDPOINT: http://minio:9000
+  #     S3_ACCESS_KEY: minioadmin
+  #     S3_SECRET_KEY: minioadmin
+  #     S3_BUCKET: aigc-images
+  #     RUST_LOG: info
+  #   depends_on:
+  #     scylla:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_healthy
+  #   networks:
+  #     - aigc-network
+
+networks:
+  aigc-network:
+    driver: bridge
+
+volumes:
+  scylla-data:
+  minio-data:
+
